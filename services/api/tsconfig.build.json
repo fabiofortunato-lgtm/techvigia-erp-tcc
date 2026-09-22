@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  // Config usada pelo `nest build` (o CLI do Nest prefere este arquivo
+  // quando ele existe). Compilar test/ e scripts/ junto com src/ fazia o
+  // rootDir subir um nível e a saída virar dist/src/main.js em vez de
+  // dist/main.js - que é o caminho esperado pelo Dockerfile. Era por isso
+  // que a imagem da API subia e morria na hora com "Cannot find module
+  // '/app/dist/main'".
+  //
+  // O exclude fica AQUI, e não no tsconfig.json, porque o ESLint usa o
+  // tsconfig.json para checagem com tipos: excluir os testes de lá deixa
+  // `npm run lint` sem conseguir analisar test/**.
+  "exclude": ["node_modules", "dist", "test", "scripts", "**/*spec.ts"]
+}

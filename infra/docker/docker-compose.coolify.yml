@@ -1,0 +1,82 @@
+# VERSÃO ACADÊMICA (TCC) - stack completa pra deploy via Coolify.
+#
+# Diferente do docker-compose.yml (que só sobe banco+redis, pra usar junto
+# com `npm run dev` localmente), este arquivo sobe os 4 serviços prontos
+# pra produção: banco, redis, API e painel web - o mesmo padrão já usado
+# no deploy real da ScantechRio, só que isolado (nomes, rede e volumes
+# próprios, sem overlap nenhum com o ambiente real).
+#
+# No Coolify: New Resource -> Docker Compose -> aponte pra este arquivo.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: techvigia
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: techvigia_academico
+    volumes:
+      - techvigia_tcc_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U techvigia"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - techvigia_tcc_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ../..
+      dockerfile: services/api/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://techvigia:${POSTGRES_PASSWORD}@postgres:5432/techvigia_academico?schema=public
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: 15m
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_REFRESH_EXPIRES_IN: 7d
+      PORT: 3000
+      # Preenchidos com o domínio real depois que o Coolify gerar/você
+      # configurar - ver instruções no bilhete de deploy.
+      PUBLIC_URL: ${PUBLIC_URL}
+      FRONTEND_URL: ${PUBLIC_URL}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build:
+      context: ../..
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      API_URL: http://api:3000
+    ports:
+      - "80"
+
+volumes:
+  techvigia_tcc_pg_data:
+  techvigia_tcc_redis_data:

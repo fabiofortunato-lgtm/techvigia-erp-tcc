@@ -1,0 +1,67 @@
+-- AlterTable
+ALTER TABLE "checklist_itens" ALTER COLUMN "createdAt" SET DATA TYPE TIMESTAMPTZ(3),
+ALTER COLUMN "updatedAt" SET DATA TYPE TIMESTAMPTZ(3);
+
+-- AlterTable
+ALTER TABLE "condominios" ALTER COLUMN "createdAt" SET DATA TYPE TIMESTAMPTZ(3),
+ALTER COLUMN "updatedAt" SET DATA TYPE TIMESTAMPTZ(3),
+ALTER COLUMN "deletedAt" SET DATA TYPE TIMESTAMPTZ(3);
+
+-- AlterTable
+ALTER TABLE "equipamentos" ALTER COLUMN "garantiaAte" SET DATA TYPE TIMESTAMPTZ(3),
+ALTER COLUMN "dataInstalacao" SET DATA TYPE TIMESTAMPTZ(3),
+ALTER COLUMN "createdAt" SET DATA TYPE TIMESTAMPTZ(3),
+ALTER COLUMN "updatedAt" SET DATA TYPE TIMESTAMPTZ(3),
+ALTER COLUMN "deletedAt" SET DATA TYPE TIMESTAMPTZ(3);
+
+-- AlterTable
+ALTER TABLE "fotos" ALTER COLUMN "createdAt" SET DATA TYPE TIMESTAMPTZ(3);
+
+-- AlterTable
+ALTER TABLE "itens_estoque" ALTER COLUMN "createdAt" SET DATA TYPE TIMESTAMPTZ(3),
+ALTER COLUMN "updatedAt" SET DATA TYPE TIMESTAMPTZ(3),
+ALTER COLUMN "deletedAt" SET DATA TYPE TIMESTAMPTZ(3);
+
+-- AlterTable
+ALTER TABLE "logs_auditoria" ALTER COLUMN "criadoEm" SET DATA TYPE TIMESTAMPTZ(3);
+
+-- AlterTable
+ALTER TABLE "manutencoes" ALTER COLUMN "inicio" SET DATA TYPE TIMESTAMPTZ(3),
+ALTER COLUMN "fim" SET DATA TYPE TIMESTAMPTZ(3),
+ALTER COLUMN "createdAt" SET DATA TYPE TIMESTAMPTZ(3),
+ALTER COLUMN "updatedAt" SET DATA TYPE TIMESTAMPTZ(3),
+ALTER COLUMN "deletedAt" SET DATA TYPE TIMESTAMPTZ(3),
+ALTER COLUMN "assinadoEm" SET DATA TYPE TIMESTAMPTZ(3);
+
+-- AlterTable
+ALTER TABLE "movimentacoes_estoque" ALTER COLUMN "createdAt" SET DATA TYPE TIMESTAMPTZ(3);
+
+-- AlterTable
+ALTER TABLE "pecas" ALTER COLUMN "createdAt" SET DATA TYPE TIMESTAMPTZ(3),
+ALTER COLUMN "updatedAt" SET DATA TYPE TIMESTAMPTZ(3);
+
+-- AlterTable
+ALTER TABLE "tecnico_condominio" ALTER COLUMN "createdAt" SET DATA TYPE TIMESTAMPTZ(3),
+ALTER COLUMN "updatedAt" SET DATA TYPE TIMESTAMPTZ(3);
+
+-- AlterTable
+ALTER TABLE "usuarios" ALTER COLUMN "createdAt" SET DATA TYPE TIMESTAMPTZ(3),
+ALTER COLUMN "updatedAt" SET DATA TYPE TIMESTAMPTZ(3),
+ALTER COLUMN "deletedAt" SET DATA TYPE TIMESTAMPTZ(3),
+ALTER COLUMN "resetSenhaExpiraEm" SET DATA TYPE TIMESTAMPTZ(3);
+
+-- CreateTable
+CREATE TABLE "requisicoes_idempotentes" (
+    "chave" TEXT NOT NULL,
+    "usuarioId" TEXT NOT NULL,
+    "metodo" TEXT NOT NULL,
+    "rota" TEXT NOT NULL,
+    "statusHttp" INTEGER,
+    "resposta" JSONB,
+    "criadoEm" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "requisicoes_idempotentes_pkey" PRIMARY KEY ("usuarioId","chave")
+);
+
+-- CreateIndex
+CREATE INDEX "requisicoes_idempotentes_criadoEm_idx" ON "requisicoes_idempotentes"("criadoEm");

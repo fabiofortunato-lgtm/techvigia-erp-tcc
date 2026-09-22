@@ -1,0 +1,43 @@
+version: "3.9"
+
+# VERSÃO ACADÊMICA - nomes de container, volumes e PORTAS DE HOST
+# diferentes do projeto original, de propósito. Isso permite rodar essa
+# cópia na mesma máquina que o ambiente real, sem risco de colisão de
+# porta nem de misturar dados dos dois bancos.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: techvigia-academico-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: techvigia
+      POSTGRES_PASSWORD: techvigia_academico_dev
+      POSTGRES_DB: techvigia_academico
+    ports:
+      - "5433:5432" # porta de HOST diferente da padrão (5432), de propósito
+    volumes:
+      - techvigia_academico_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U techvigia"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: techvigia-academico-redis
+    restart: unless-stopped
+    ports:
+      - "6380:6379" # porta de HOST diferente da padrão (6379), de propósito
+    volumes:
+      - techvigia_academico_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  techvigia_academico_pg_data:
+  techvigia_academico_redis_data:

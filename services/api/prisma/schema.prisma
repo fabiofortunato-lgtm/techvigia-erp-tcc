@@ -1,0 +1,412 @@
+// TechVigia ERP - Schema v1
+// Convenções: todas as entidades têm createdAt/updatedAt/deletedAt (soft delete)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum PerfilUsuario {
+  ADMIN
+  GESTOR
+  TECNICO
+}
+
+enum StatusManutencao {
+  AGENDADA
+  EM_ANDAMENTO
+  CONCLUIDA
+  CANCELADA
+  PENDENTE_SINCRONIZACAO
+}
+
+enum TipoFoto {
+  ANTES
+  DEPOIS
+}
+
+enum StatusChecklistItem {
+  OK
+  DEFEITO
+  NAO_APLICAVEL
+}
+
+enum TipoMovimentacaoEstoque {
+  ENTRADA
+  SAIDA
+}
+
+enum TipoManutencao {
+  PREVENTIVA
+  CORRETIVA
+}
+
+enum PrioridadeManutencao {
+  BAIXA
+  MEDIA
+  ALTA
+}
+
+enum StatusEquipamento {
+  OK
+  DEFEITO
+}
+
+model Usuario {
+  id            String    @id @default(uuid())
+  nome          String
+  email         String    @unique
+  senhaHash     String
+  perfil        PerfilUsuario @default(TECNICO)
+  ativo         Boolean   @default(true)
+
+  // Redefinição de senha: token de uso único com expiração.
+  // Nunca reaproveitar o mesmo token depois de usado (resetSenhaToken
+  // volta a null após a troca de senha ser concluída).
+  resetSenhaToken       String?   @unique
+  resetSenhaExpiraEm    DateTime? @db.Timestamptz(3)
+
+  // Relação N:N - um técnico pode atender vários condomínios
+  condominios   TecnicoCondominio[]
+  manutencoes   Manutencao[]
+  movimentacoesEstoque MovimentacaoEstoque[]
+  logsAuditoria LogAuditoria[]
+
+  createdAt     DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime  @updatedAt @db.Timestamptz(3)
+  deletedAt     DateTime? @db.Timestamptz(3)
+
+  @@map("usuarios")
+}
+
+model Condominio {
+  id            String    @id @default(uuid())
+  nome          String
+  cnpj          String?   @unique // pessoa jurídica - opcional agora, ver cpf abaixo
+  cpf           String?   @unique // pessoa física - exatamente um dos dois (cnpj OU cpf) é obrigatório, validado na aplicação (Prisma não expressa essa regra no schema)
+  endereco      String
+  bairro        String
+  cidade        String
+  cep           String
+  telefone      String?
+  whatsapp      String?
+  email         String?
+  sindico       String?
+  zelador       String?
+  periodicidade Int       // dias entre manutenções preventivas
+
+  tecnicos      TecnicoCondominio[]
+  equipamentos  Equipamento[]
+  manutencoes   Manutencao[]
+
+  createdAt     DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime  @updatedAt @db.Timestamptz(3)
+  deletedAt     DateTime? @db.Timestamptz(3)
+
+  @@map("condominios")
+}
+
+// Tabela pivô explícita (permite guardar histórico de quando o técnico
+// passou a atender aquele condomínio, e responsável principal)
+model TecnicoCondominio {
+  id            String    @id @default(uuid())
+  tecnicoId     String
+  condominioId  String
+  responsavelPrincipal Boolean @default(false)
+
+  tecnico       Usuario     @relation(fields: [tecnicoId], references: [id])
+  condominio    Condominio  @relation(fields: [condominioId], references: [id])
+
+  createdAt     DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime  @updatedAt @db.Timestamptz(3)
+
+  @@unique([tecnicoId, condominioId])
+  @@index([condominioId])
+  @@map("tecnico_condominio")
+}
+
+model Equipamento {
+  id              String    @id @default(uuid())
+  condominioId    String
+  tipo            String    // DVR, Câmera, Nobreak, etc.
+  local           String?   // Ex: "Portaria", "Garagem subsolo 1" - onde o equipamento fica no condomínio
+  status          StatusEquipamento @default(OK)
+  fabricante      String
+  modelo          String
+  numeroSerie     String?   @unique
+  patrimonio      String?   @unique
+  garantiaAte     DateTime? @db.Timestamptz(3)
+  dataInstalacao  DateTime  @db.Timestamptz(3)
+  fotoUrl         String?   // foto do equipamento no cadastro
+
+  // Peças com troca periódica prevista (ex: bateria de nobreak, trocada a
+  // cada 12 meses) - intervaloTrocaMeses null = sem troca periódica prevista
+  // pra esse equipamento. "Próxima troca" é calculada na aplicação:
+  // (dataUltimaTroca ou dataInstalacao, se nunca trocado) + intervaloTrocaMeses.
+  intervaloTrocaMeses  Int?
+  dataUltimaTroca      DateTime? @db.Timestamptz(3)
+
+  condominio      Condominio @relation(fields: [condominioId], references: [id])
+
+  // Rastreabilidade: histórico de peças trocadas/defeitos deste equipamento
+  pecas           Peca[]
+  // OS que trataram desse equipamento como assunto principal da visita
+  manutencoes     Manutencao[]
+
+  createdAt       DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime  @updatedAt @db.Timestamptz(3)
+  deletedAt       DateTime? @db.Timestamptz(3)
+
+  @@index([condominioId])
+  @@map("equipamentos")
+}
+
+model Manutencao {
+  id            String    @id @default(uuid())
+  numeroOS      String    @unique // ex: OS-2026000001
+  condominioId  String
+  // Opcional - de propósito. OS geradas automaticamente pelo job de
+  // recorrência (ManutencaoRecorrenteService) nascem sem técnico, até
+  // alguém no painel atribuir manualmente. Toda OS criada pelo app/painel
+  // continua exigindo técnico na validação do CreateManutencaoDto - essa
+  // flexibilidade no schema serve só o caminho automático.
+  tecnicoId     String?
+
+  // Qual equipamento essa visita trata primariamente (ex: "veio pra
+  // consertar essa câmera específica") - opcional, diferente de
+  // Peca.equipamentoId (que rastreia em qual equipamento cada peça
+  // trocada foi instalada, não o assunto geral da visita).
+  equipamentoId String?
+
+  inicio        DateTime? @db.Timestamptz(3)
+  fim           DateTime? @db.Timestamptz(3)
+  status        StatusManutencao @default(AGENDADA)
+  tipo          TipoManutencao @default(PREVENTIVA)
+  prioridade    PrioridadeManutencao @default(MEDIA)
+  observacao    String?
+  // Chamado avulso = criado pelo app mobile com inicio = "agora" (não uma
+  // data agendada de verdade). Precisa de mais tolerância antes de virar
+  // "atrasada" - diferente de uma visita marcada com antecedência via
+  // painel web, que já é considerada atrasada assim que a data/hora
+  // marcada passa sem check-in.
+  chamadoAvulso Boolean @default(false)
+
+  latitudeCheckin   Float?
+  longitudeCheckin  Float?
+
+  assinaturaUrl     String?  // URL do arquivo de assinatura no storage
+  assinanteNome     String?  // nome de quem assinou (síndico/zelador), digitado no app antes de assinar
+  assinadoEm        DateTime? @db.Timestamptz(3) // momento exato da coleta da assinatura - a partir daqui a OS fica travada
+  pdfUrl            String?  // URL do PDF gerado
+  whatsappEnviado   Boolean  @default(false)
+
+  condominio    Condominio @relation(fields: [condominioId], references: [id])
+  tecnico       Usuario?   @relation(fields: [tecnicoId], references: [id])
+  equipamento   Equipamento? @relation(fields: [equipamentoId], references: [id])
+
+  fotos         Foto[]
+  checklist     ChecklistItem[]
+  pecas         Peca[]
+  logsAuditoria LogAuditoria[]
+
+  createdAt     DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime  @updatedAt @db.Timestamptz(3)
+  deletedAt     DateTime? @db.Timestamptz(3)
+
+  @@index([condominioId])
+  @@index([tecnicoId])
+  @@index([status])
+  @@map("manutencoes")
+}
+
+model Foto {
+  id            String    @id @default(uuid())
+  manutencaoId  String
+  arquivoUrl    String
+  tipo          TipoFoto
+
+  manutencao    Manutencao @relation(fields: [manutencaoId], references: [id])
+
+  createdAt     DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@index([manutencaoId])
+  @@map("fotos")
+}
+
+model ChecklistItem {
+  id            String    @id @default(uuid())
+  manutencaoId  String
+  item          String
+  status        StatusChecklistItem @default(OK)
+  observacao    String?
+
+  manutencao    Manutencao @relation(fields: [manutencaoId], references: [id])
+
+  createdAt     DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime  @updatedAt @db.Timestamptz(3)
+
+  @@index([manutencaoId])
+  @@map("checklist_itens")
+}
+
+// Modelo reutilizável de checklist, um por Tipo de manutenção (Preventiva
+// ou Corretiva) - ao criar uma OS desse tipo, o checklist é copiado
+// automaticamente a partir daqui, item por item (ver
+// ManutencoesService.create). Editar o modelo depois não altera OS já
+// criadas - é só um "molde" pras próximas.
+model ChecklistModelo {
+  id        String   @id @default(uuid())
+  tipo      TipoManutencao @unique
+  nome      String   // rótulo livre pra identificar o modelo, ex: "Checklist de CFTV Preventiva"
+
+  itens     ChecklistModeloItem[]
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  @@map("checklist_modelos")
+}
+
+model ChecklistModeloItem {
+  id                String   @id @default(uuid())
+  checklistModeloId String
+  item              String
+  ordem             Int      @default(0)
+
+  checklistModelo   ChecklistModelo @relation(fields: [checklistModeloId], references: [id], onDelete: Cascade)
+
+  createdAt         DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([checklistModeloId])
+  @@map("checklist_modelo_itens")
+}
+
+// Peça vinculada tanto à manutenção (em qual OS foi trocada)
+// quanto ao equipamento (histórico de defeitos daquele equipamento específico
+// - fundamental para a futura feature de IA preditiva).
+// itemEstoqueId é opcional: permite registrar uma peça "avulsa" (comprada na hora,
+// fora do estoque controlado) sem travar o fluxo do técnico em campo.
+model Peca {
+  id              String    @id @default(uuid())
+  manutencaoId    String
+  equipamentoId   String?
+  itemEstoqueId   String?
+
+  nome            String
+  quantidade      Int       @default(1)
+  custoUnitario   Decimal?  @db.Decimal(10, 2)
+  fornecedor      String?
+  motivoTroca     String?
+
+  manutencao      Manutencao   @relation(fields: [manutencaoId], references: [id])
+  equipamento     Equipamento? @relation(fields: [equipamentoId], references: [id])
+  itemEstoque     ItemEstoque? @relation(fields: [itemEstoqueId], references: [id])
+
+  createdAt       DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime  @updatedAt @db.Timestamptz(3)
+
+  @@index([manutencaoId])
+  @@index([equipamentoId])
+  @@index([itemEstoqueId])
+  @@map("pecas")
+}
+
+// Estoque central de peças/materiais usados nas manutenções.
+// Quando uma Peca referencia um ItemEstoque, a baixa de quantidade
+// é feita via MovimentacaoEstoque (nunca decrementando direto, para manter histórico).
+model ItemEstoque {
+  id                String    @id @default(uuid())
+  nome              String
+  unidade           String    @default("un") // un, m, cx, etc.
+  quantidade        Int       @default(0)     // saldo atual (calculado a partir das movimentações)
+  quantidadeMinima  Int       @default(0)     // usado para alerta de reposição
+  custoUnitario     Decimal?  @db.Decimal(10, 2)
+  fornecedor        String?
+
+  pecas             Peca[]
+  movimentacoes     MovimentacaoEstoque[]
+
+  createdAt         DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime  @updatedAt @db.Timestamptz(3)
+  deletedAt         DateTime? @db.Timestamptz(3)
+
+  @@map("itens_estoque")
+}
+
+// Histórico de entradas/saídas do estoque (auditável - nunca apagar).
+model MovimentacaoEstoque {
+  id              String    @id @default(uuid())
+  itemEstoqueId   String
+  tipo            TipoMovimentacaoEstoque
+  quantidade      Int
+  motivo          String?
+  usuarioId       String?
+
+  itemEstoque     ItemEstoque @relation(fields: [itemEstoqueId], references: [id])
+  // Antes, usuarioId era um texto solto sem chave estrangeira - um ledger
+  // de estoque cuja autoria não tem integridade referencial não é
+  // realmente auditável, mesmo com o comentário acima dizendo que é.
+  usuario         Usuario?    @relation(fields: [usuarioId], references: [id])
+
+  createdAt       DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@index([itemEstoqueId])
+  @@index([usuarioId])
+  @@map("movimentacoes_estoque")
+}
+
+// Contador atômico para a numeração de OS (ex: OS-2026000001), um registro
+// por ano. Substitui o antigo count()+1 (que tinha uma corrida real: dois
+// agendamentos simultâneos podiam gerar o mesmo número e o segundo estourava
+// erro 500) - o upsert com increment vira um INSERT...ON CONFLICT DO UPDATE
+// atômico no Postgres, então duas requisições concorrentes sempre recebem
+// números diferentes, sem precisar de nenhuma trava manual.
+model ContadorOS {
+  ano     Int @id
+  ultimo  Int @default(0)
+
+  @@map("contador_os")
+}
+
+// Trilha de auditoria - registra ações sensíveis do sistema (quem fez o
+// quê e quando). Existia coleta de assinatura digital sem nenhum jeito de
+// reconstruir a autoria de uma ação depois do fato - isso resolve isso.
+// Nunca editar nem apagar um registro daqui depois de criado.
+model LogAuditoria {
+  id            String    @id @default(uuid())
+  manutencaoId  String?
+  usuarioId     String?
+  acao          String    // ex: "ASSINATURA_COLETADA", "OS_CONCLUIDA", "EDICAO_BLOQUEADA_OS_ASSINADA"
+  detalhes      String?   // contexto livre (ex: qual campo tentou editar)
+
+  manutencao    Manutencao? @relation(fields: [manutencaoId], references: [id])
+  usuario       Usuario?    @relation(fields: [usuarioId], references: [id])
+
+  criadoEm      DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@index([manutencaoId])
+  @@index([usuarioId])
+  @@map("logs_auditoria")
+}
+
+// Idempotencia das acoes reenviadas pela fila offline do app - evita que
+// uma resposta perdida no caminho (o servidor grava, o celular nao recebe
+// o "ok" e reenvia) duplique o efeito (ex: peca registrada duas vezes,
+// baixa dobrada no estoque). Ver src/common/idempotencia.interceptor.ts.
+model RequisicaoIdempotente {
+  chave       String
+  usuarioId   String
+  metodo      String
+  rota        String
+  statusHttp  Int?
+  resposta    Json?
+  criadoEm    DateTime @default(now()) @db.Timestamptz(3)
+
+  @@id([usuarioId, chave])
+  @@index([criadoEm])
+  @@map("requisicoes_idempotentes")
+}

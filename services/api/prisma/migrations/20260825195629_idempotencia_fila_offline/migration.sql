@@ -1,0 +1,60 @@
+/*
+  Warnings:
+
+  - You are about to drop the `requisicoes_idempotentes` table. If the table is not empty, all the data it contains will be lost.
+
+*/
+-- AlterTable
+ALTER TABLE "checklist_itens" ALTER COLUMN "createdAt" SET DATA TYPE TIMESTAMP(3),
+ALTER COLUMN "updatedAt" SET DATA TYPE TIMESTAMP(3);
+
+-- AlterTable
+ALTER TABLE "condominios" ALTER COLUMN "createdAt" SET DATA TYPE TIMESTAMP(3),
+ALTER COLUMN "updatedAt" SET DATA TYPE TIMESTAMP(3),
+ALTER COLUMN "deletedAt" SET DATA TYPE TIMESTAMP(3);
+
+-- AlterTable
+ALTER TABLE "equipamentos" ALTER COLUMN "garantiaAte" SET DATA TYPE TIMESTAMP(3),
+ALTER COLUMN "dataInstalacao" SET DATA TYPE TIMESTAMP(3),
+ALTER COLUMN "createdAt" SET DATA TYPE TIMESTAMP(3),
+ALTER COLUMN "updatedAt" SET DATA TYPE TIMESTAMP(3),
+ALTER COLUMN "deletedAt" SET DATA TYPE TIMESTAMP(3);
+
+-- AlterTable
+ALTER TABLE "fotos" ALTER COLUMN "createdAt" SET DATA TYPE TIMESTAMP(3);
+
+-- AlterTable
+ALTER TABLE "itens_estoque" ALTER COLUMN "createdAt" SET DATA TYPE TIMESTAMP(3),
+ALTER COLUMN "updatedAt" SET DATA TYPE TIMESTAMP(3),
+ALTER COLUMN "deletedAt" SET DATA TYPE TIMESTAMP(3);
+
+-- AlterTable
+ALTER TABLE "logs_auditoria" ALTER COLUMN "criadoEm" SET DATA TYPE TIMESTAMP(3);
+
+-- AlterTable
+ALTER TABLE "manutencoes" ALTER COLUMN "inicio" SET DATA TYPE TIMESTAMP(3),
+ALTER COLUMN "fim" SET DATA TYPE TIMESTAMP(3),
+ALTER COLUMN "createdAt" SET DATA TYPE TIMESTAMP(3),
+ALTER COLUMN "updatedAt" SET DATA TYPE TIMESTAMP(3),
+ALTER COLUMN "deletedAt" SET DATA TYPE TIMESTAMP(3),
+ALTER COLUMN "assinadoEm" SET DATA TYPE TIMESTAMP(3);
+
+-- AlterTable
+ALTER TABLE "movimentacoes_estoque" ALTER COLUMN "createdAt" SET DATA TYPE TIMESTAMP(3);
+
+-- AlterTable
+ALTER TABLE "pecas" ALTER COLUMN "createdAt" SET DATA TYPE TIMESTAMP(3),
+ALTER COLUMN "updatedAt" SET DATA TYPE TIMESTAMP(3);
+
+-- AlterTable
+ALTER TABLE "tecnico_condominio" ALTER COLUMN "createdAt" SET DATA TYPE TIMESTAMP(3),
+ALTER COLUMN "updatedAt" SET DATA TYPE TIMESTAMP(3);
+
+-- AlterTable
+ALTER TABLE "usuarios" ALTER COLUMN "createdAt" SET DATA TYPE TIMESTAMP(3),
+ALTER COLUMN "updatedAt" SET DATA TYPE TIMESTAMP(3),
+ALTER COLUMN "deletedAt" SET DATA TYPE TIMESTAMP(3),
+ALTER COLUMN "resetSenhaExpiraEm" SET DATA TYPE TIMESTAMP(3);
+
+-- DropTable
+DROP TABLE "requisicoes_idempotentes";
