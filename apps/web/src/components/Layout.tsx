@@ -167,7 +167,7 @@ const styles: Record<string, CSSProperties> = {
     justifyContent: 'center',
   },
   logoImg: {
-    height: 56,
+    height: 64, maxWidth: '100%',
     width: 'auto',
   },
   areaPrincipal: {

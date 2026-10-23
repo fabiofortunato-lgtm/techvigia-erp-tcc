@@ -32,9 +32,9 @@ export function Login() {
 
         <div style={styles.marca}>
           <img src={logo} alt="TechVigia" style={styles.logoImg} />
-          <h1 style={styles.titulo}>Painel de Manutenção CFTV</h1>
+          <h1 style={styles.titulo}>Painel de Manuten&ccedil;&atilde;o</h1>
           <p style={styles.subtitulo}>
-            Ordem de serviço digital para condomínios.
+            Ordem de Servi&ccedil;o Digital
           </p>
 
           <ul style={styles.listaRecursos}>
@@ -183,7 +183,7 @@ const styles: Record<string, CSSProperties> = {
     zIndex: 1,
   },
   logoImg: {
-    height: 48,
+    height: 80,
     width: 'auto',
   },
   titulo: {

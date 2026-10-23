@@ -7,7 +7,9 @@
     "userInterfaceStyle": "light",
     "icon": "./assets/icon.png",
     "splash": {
-      "backgroundColor": "#10151b"
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1d2d3d"
     },
     "assetBundlePatterns": [
       "**/*"
@@ -26,7 +28,7 @@
       "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#3562e9"
+        "backgroundColor": "#1d2d3d"
       },
       "permissions": [
         "android.permission.ACCESS_FINE_LOCATION",
