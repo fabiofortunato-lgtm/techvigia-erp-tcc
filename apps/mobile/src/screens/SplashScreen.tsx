@@ -46,7 +46,7 @@ export function SplashScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  logo: { width: 230, height: 97, marginBottom: 32 },
+  logo: { width: 300, height: 72, marginBottom: 32 },
   pontosLinha: { flexDirection: 'row', gap: 10 },
   ponto: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#fff' },
 });

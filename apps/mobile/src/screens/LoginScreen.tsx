@@ -58,7 +58,7 @@ export function LoginScreen() {
 
         <View style={styles.sheet}>
           <Text style={styles.titulo}>Bem-vindo de volta</Text>
-          <Text style={styles.subtitulo}>Ordem de serviço digital para condomínios</Text>
+          <Text style={styles.subtitulo}>Ordem de Serviço Digital</Text>
 
           <Text style={styles.label}>E-mail</Text>
           <TextInput
@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     overflow: 'hidden',
   },
-  logo: { width: 200, height: 84 },
+  logo: { width: 300, height: 72 },
   sheet: {
     flex: 1,
     backgroundColor: cores.superficie,

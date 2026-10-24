@@ -355,7 +355,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 9,
     paddingVertical: 5,
   },
-  headerLogo: { height: 20, width: 84 },
+  headerLogo: { height: 34, width: 141 },
   headerAcoes: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   botaoSair: {
     borderWidth: 1,
